@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.tif
+*.tiff
+*.db
+*.sqlite
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+*.log
+data/*.tif
+data/cache/
+backend/models/

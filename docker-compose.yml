@@ -1,0 +1,85 @@
+version: "3.9"
+
+# FloodGuard AI — full deployment stack.
+#   docker compose up --build
+#
+# Notes:
+#   - The app auto-degrades to in-memory storage when DATABASE_URL is not set.
+#   - Delegated: Redis is optional (used for webhook/cache fan-out).
+#   - Routing falls back to the flood-aware NetworkX engine when OSRM is down.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: floodguard-backend
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql://floodguard:floodguard@postgis:5432/floodguard
+      - REDIS_URL=redis://redis:6379/0
+      - OSRM_URL=http://osrm:5000
+    volumes:
+      - ./data:/app/data
+      - ./backend/app:/app/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgis:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: floodguard-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_BASE=/api
+
+  postgis:
+    image: postgis/postgis:16-3.4
+    container_name: floodguard-postgis
+    environment:
+      POSTGRES_USER: floodguard
+      POSTGRES_PASSWORD: floodguard
+      POSTGRES_DB: floodguard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U floodguard -d floodguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: floodguard-redis
+    ports:
+      - "6380:6379"
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    container_name: floodguard-osrm
+    command: >
+      osrm-routed --algorithm mld /data/chennai.osrm
+    volumes:
+      - ./data/osrm:/data
+    ports:
+      - "5000:5000"
+
+volumes:
+  pgdata:

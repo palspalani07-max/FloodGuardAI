@@ -1,0 +1,50 @@
+# Render Blueprint — FloodGuard AI backend (public API for the Vercel frontend).
+#
+#   https://dashboard.render.com/blueprints -> New Blueprint Instance -> this repo
+#
+# Secrets: NASA_EARTHDATA_TOKEN / GOOGLE_FLOOD_API_KEY / OPEN_METEO_API_KEY are
+# declared by name only (sync: false) and must be entered in the Render dashboard
+# env-var fields. Never commit secret values. DATABASE_URL/REDIS_URL left unset
+# keeps the app on in-memory storage + no Redis (matches the local prototype).
+#
+# Expected public host: https://floodguard-ai-backend.onrender.com
+services:
+  - type: web
+    name: floodguard-ai-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: CITY_NAME
+        value: Chennai
+      - key: CITY_LAT
+        value: "13.0827"
+      - key: CITY_LON
+        value: "80.2707"
+      - key: STUDY_AREA_SOUTH
+        value: "12.99"
+      - key: STUDY_AREA_NORTH
+        value: "13.17"
+      - key: STUDY_AREA_WEST
+        value: "80.15"
+      - key: STUDY_AREA_EAST
+        value: "80.32"
+      - key: OSRM_URL
+        value: http://router.project-osrm.org
+      - key: LOG_LEVEL
+        value: INFO
+      # Secrets — set in the Render dashboard, never in the repo.
+      - key: NASA_EARTHDATA_TOKEN
+        sync: false
+      - key: GOOGLE_FLOOD_API_KEY
+        sync: false
+      - key: OPEN_METEO_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

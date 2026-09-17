@@ -3,8 +3,17 @@ import { useStore } from "../stores/appStore";
 export default function SourceStatus() {
   const system = useStore((s) => s.system);
   if (!system) return <div className="card" style={{ color: "var(--text-dim)", fontSize: 13 }}>Source status pending…</div>;
-  const st = (s: string) => (s === "OK" || s === "LIVE" || s === "HEALTHY" ? "OK" : s === "UNAVAILABLE" || s === "DOWN" ? "DOWN" : s);
-  const sys = (s: string) => (s === "OK" || s === "LIVE" || s === "HEALTHY" ? "var(--safe)" : "var(--severe)");
+  const norm = (s: string) => (s || "").toUpperCase();
+  const st = (s: string) =>
+    ["OK", "LIVE", "HEALTHY", "CONNECTED"].includes(norm(s)) ? "OK"
+      : norm(s) === "CONFIG-MISSING" ? "CONFIG-MISSING"
+      : norm(s) === "IDLE" ? "IDLE"
+      : "DOWN";
+  const sys = (s: string) =>
+    st(s) === "OK" ? "var(--safe)"
+      : st(s) === "CONFIG-MISSING" ? "var(--warn)"
+      : st(s) === "IDLE" ? "var(--text-dim)"
+      : "var(--severe)"
 
   return (
     <div>
@@ -19,7 +28,7 @@ export default function SourceStatus() {
         </div>
       ))}
       <div style={{ fontSize: 11.5, color: "var(--text-dim)", marginTop: 8 }}>
-        Live: Open-Meteo (weather·forecast) · Simulated locally: terrain, drainage network, NASA/Google-style rainfall & radar.
+        Live: Open-Meteo (weather/forecast) · NASA GPM IMERG (rainfall, when configured) · Google Flood Hub (flood context, when configured) · Simulated locally: terrain, drainage network, radar.
       </div>
     </div>
   );

@@ -13,9 +13,15 @@ class BaseProvider(ABC):
         self.last_success: Optional[datetime] = None
         self.last_error: Optional[str] = None
 
+    def config_missing(self) -> bool:
+        """True when the provider needs credentials that are not configured."""
+        return False
+
     @property
     def status(self) -> str:
         if not self.available:
+            if self.config_missing():
+                return "config-missing"
             return "unavailable"
         if self.last_error and (self.last_success is None or self.last_error_time > self.last_success):
             return "error"
@@ -48,4 +54,9 @@ class BaseProvider(ABC):
             "last_updated": self.last_success,
             "data_age_seconds": age,
             "data_type": "LIVE" if self.last_success else "UNAVAILABLE",
+            "details": {
+                "requires_auth": self.requires_auth,
+                "config_missing": self.config_missing(),
+                "last_error": self.last_error,
+            },
         }

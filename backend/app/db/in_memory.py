@@ -98,7 +98,22 @@ class InMemoryStorage(StorageAdapter):
 
     def get_active_alerts(self) -> List[dict]:
         now = datetime.now(timezone.utc)
-        return [a for a in self.alerts if a.get("status") == "active" and (not a.get("expires_at") or a["expires_at"] > now)]
+        return [a for a in self.alerts if a.get("status") == "active" and self._not_expired(a.get("expires_at"), now)]
+
+    @staticmethod
+    def _not_expired(expires_at, now: datetime) -> bool:
+        if not expires_at:
+            return True
+        if isinstance(expires_at, datetime):
+            exp = expires_at if expires_at.tzinfo else expires_at.replace(tzinfo=timezone.utc)
+            return exp > now
+        try:
+            exp = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return True
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        return exp > now
 
     def save_weather(self, data: dict):
         self.weather = data

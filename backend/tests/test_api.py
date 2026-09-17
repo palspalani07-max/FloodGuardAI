@@ -116,6 +116,48 @@ def test_rainfall_nowcast(client):
     assert body["confidence"] in ("HIGH", "MEDIUM", "LOW")
 
 
+def test_providers_status_endpoint(client):
+    r = client.get("/api/providers/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert "providers" in body
+    names = {p["name"] for p in body["providers"]}
+    assert "nasa_gpm" in names
+    assert "google_flood" in names
+    assert "open_meteo" in names
+    assert body["nasa"]["configured"] is False
+    assert body["nasa"]["status"] == "config-missing"
+    assert body["google_flood"]["configured"] is False
+    assert body["google_flood"]["status"] == "config-missing"
+
+
+def test_nasa_rainfall_endpoint_config_missing_without_token(client):
+    r = client.get("/api/flood/nasa-rainfall")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "config-missing"
+    assert "message" in body
+    assert body["cells"] == []
+
+
+def test_google_flood_context_endpoint_config_missing_without_key(client):
+    r = client.get("/api/flood/google-context")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "config-missing"
+    assert "message" in body
+    assert body["context"] is None
+
+
+def test_provider_status_never_exposes_secrets(client):
+    r = client.get("/api/providers/status")
+    body = r.json()
+    raw = str(body)
+    assert "Bearer" not in raw
+    for secret in ("nasa_earthdata_token", "google_flood_api_key", "open_meteo_api_key"):
+        assert secret not in raw
+
+
 def test_simulation_scenario_overrides(client):
     r = client.post("/api/simulation/start", json={
         "name": "TEST_SCENARIO", "rainfall_mm_hr": 60.0, "duration_min": 60, "blockage_percent": 15,

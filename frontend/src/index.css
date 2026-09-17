@@ -15,6 +15,7 @@
   --high: #f2961c;
   --severe: #e64a45;
   --critical: #b01245;
+  --warn: #f0c419;
   --radius: 14px;
   --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
 }

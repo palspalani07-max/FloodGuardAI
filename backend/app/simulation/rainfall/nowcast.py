@@ -36,10 +36,23 @@ class RainfallNowcast:
         forecast = om.get_forecast(lat, lon)
 
         base_intensity = override_intensity
+        source_parts = ["OPEN_METEO"]
+        nasa_intensity = None
         if base_intensity is None:
             base_intensity = current.precipitation_mm * 4.0  # recent mm -> mm/hr
             if base_intensity < 0.5:
                 base_intensity = self._forecast_intensity(forecast)
+
+            # Blend in NASA GPM IMERG data if available (skipped for explicit
+            # simulation overrides so scenario rainfall keeps full precedence).
+            nasa = registry.nasa()
+            nasa_intensity = self._fetch_nasa_rainfall(nasa, lat, lon)
+            if nasa_intensity is not None and nasa_intensity > 0:
+                if base_intensity < 0.5:
+                    base_intensity = nasa_intensity
+                else:
+                    base_intensity = 0.6 * base_intensity + 0.4 * nasa_intensity
+                source_parts.append("NASA_GPM")
 
         # Build a smooth decay/advection curve from now toward forecast.
         rain_by_step = {}
@@ -56,11 +69,12 @@ class RainfallNowcast:
                 intensity = max(intensity, base_intensity * 0.3) if intensity > 0 else intensity
             rain_by_step[step] = round(intensity, 1)
 
+        source_label = "+".join(source_parts) + "+SYNTHETIC"
         result = NowcastResult(
             timesteps=self.steps,
             rainfall_mm_hr=rain_by_step,
-            confidence="MEDIUM" if not override_intensity else "HIGH",
-            source="OPEN_METEO+SYNTHETIC",
+            confidence="HIGH" if (override_intensity is not None or nasa_intensity is not None) else "MEDIUM",
+            source=source_label,
         )
         return result
 
@@ -77,3 +91,20 @@ class RainfallNowcast:
             return 0.0
         idx = min(minutes // 60, len(forecast.hourly_precipitation) - 1)
         return float(forecast.hourly_precipitation[idx] or 0.0) * 1.5
+
+    def _fetch_nasa_rainfall(self, nasa_provider, lat: float, lon: float) -> Optional[float]:
+        """Fetch rainfall intensity from NASA GPM IMERG provider.
+
+        Returns mm/hr or None if unavailable. Failures are silently ignored
+        so the nowcast falls back to Open-Meteo only.
+        """
+        try:
+            if not nasa_provider or not nasa_provider.available:
+                return None
+            cell = nasa_provider.get_latest_rainfall(lat, lon)
+            if cell and cell.rainfall_mm_hr > 0:
+                return cell.rainfall_mm_hr
+            return None
+        except Exception as e:
+            log.debug(f"NASA rainfall fetch failed: {e}")
+            return None

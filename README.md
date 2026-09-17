@@ -47,7 +47,7 @@ backend/          FastAPI service
     services/           alerts, notifications, pipeline worker
     external/           Open-Meteo, NASA, Google Flood, Radar providers
     db/                 InMemory (default) + PostGIS adapters
-  tests/                unit + end-to-end pipeline tests (51 tests)
+  tests/                unit + end-to-end pipeline tests (106 tests)
 frontend/         React + TypeScript + Vite + MapLibre GL JS
   src/map/              MapView with flood/rain/wind/hotspot/route layers
   src/webanim/          WebGL rain/lightning animation + wind particles
@@ -91,7 +91,7 @@ npm run dev        # http://localhost:5173  (proxies /api → :8000)
 
 ```bash
 cd backend
-PYTHONPATH=. .venv/Scripts/python -m pytest        # 51 tests
+PYTHONPATH=. .venv/Scripts/python -m pytest        # 106 tests
 ```
 
 ### 4. Docker (PostGIS persistence + Redis + OSRM)

@@ -275,6 +275,65 @@ def routing_health():
     return flood_aware_provider.health()
 
 
+@router.get("/providers/status")
+def providers_status():
+    """Detailed status of all registered external data providers."""
+    return {
+        "providers": registry.status_list(),
+        "nasa": registry.nasa().get_token_info(),
+        "google_flood": registry.google_flood().get_key_info(),
+    }
+
+
+@router.get("/flood/nasa-rainfall")
+def nasa_rainfall():
+    """Latest NASA GPM IMERG rainfall data for the study area."""
+    nasa = registry.nasa()
+    if not nasa.available:
+        return {
+            "status": "config-missing",
+            "message": "NASA GPM unavailable: NASA_EARTHDATA_TOKEN not configured",
+            "cells": [],
+        }
+    bbox = (
+        settings.study_area_south,
+        settings.study_area_north,
+        settings.study_area_west,
+        settings.study_area_east,
+    )
+    cells = nasa.get_rainfall_grid(bbox, resolution_deg=0.1)
+    return {
+        "status": nasa.status,
+        "source": "NASA_GPM_IMERG",
+        "cell_count": len(cells),
+        "cells": [c.model_dump() for c in cells],
+    }
+
+
+@router.get("/flood/google-context")
+def google_flood_context(
+    lat: float = Query(default=13.0827),
+    lon: float = Query(default=80.2707),
+):
+    """Google Flood Forecasting river/stream flood context for a location."""
+    gf = registry.google_flood()
+    if not gf.available:
+        return {
+            "status": "config-missing",
+            "message": "Google Flood unavailable: GOOGLE_FLOOD_API_KEY not configured",
+            "context": None,
+        }
+    context = gf.get_flood_context(lat, lon)
+    locations = gf.get_available_locations()
+    return {
+        "status": gf.status,
+        "source": "GOOGLE_FLOOD_HUB",
+        "context": context,
+        "gauge_count": len(locations),
+        "locations_sample": locations[:5] if locations else [],
+    }
+
+
 @router.post("/simulation/start")
 def simulation_start(scenario: dict):
     result = engine.start_simulation(scenario)

@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://floodguard-ai-backend-f5tz.onrender.com/api/:path*"
+    }
+  ]
+}
